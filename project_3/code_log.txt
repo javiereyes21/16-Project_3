@@ -1,0 +1,157 @@
+Code Creation Log
+Source: ChatGPT
+
+### User Input
+create table Districts(
+	district_ID int,
+	district_Name varchar not null, 
+	primary key (District_ID)
+);
+
+create table Subgroups(
+	Subgroup_No int,
+	Subgroup_Name varchar not null,
+	primary key (Subgroup_No)
+);
+
+create table Schools(
+	District_ID int,
+	School_ID int,
+	School_Name varchar not null,
+	primary key (School_ID, School_Name),
+    foreign key (District_ID) references Districts(District_ID)
+);
+
+create table Yr2023_Grad_Data(
+	School_Name varchar not null,
+	Subgroup_Name varchar not null,
+	No_in_Class int, 
+	No_Graduated int,
+	Percent_Graduated float,
+	primary key (School_Name, Subgroup_Name)
+);
+
+Please use sqlalchemy to convert to seaborn.
+
+---
+
+### Error Handling
+[Errors related to database connection and path issues were noted, including: OperationalError, SyntaxError, NameError, and ValueError.]
+
+---
+
+### User Request
+Assume the code above is correct and does not need to be reiterated unless it is being altered. Continue with using sqlalchemy for seaborn.
+
+---
+
+### User Request
+Compile the full code into one cell. Clean for redundancies and place all dependencies at the top.
+
+---
+
+### Final Compiled Code
+```python
+# Dependencies
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sqlalchemy import create_engine, text
+
+# Database setup
+db_path = "sqlite:///merged_cohorts_df.db"  # Adjust your database path
+engine = create_engine(db_path)
+
+# Function to execute queries
+def execute_query(query):
+    with engine.connect() as connection:
+        result = connection.execute(text(query))
+        return pd.DataFrame(result.fetchall(), columns=result.keys())
+
+# Overall graduation rate
+overall_grad_rate_query = """
+SELECT AVG(Percent_Graduated) as Overall_Graduation_Rate
+FROM Yr2023_Grad_Data
+"""
+overall_grad_rate = execute_query(overall_grad_rate_query)
+
+# Visualization of Overall Graduation Rate
+plt.figure(figsize=(6, 4))
+plt.bar(['Overall Graduation Rate'], overall_grad_rate['Overall_Graduation_Rate'], color='blue')
+plt.title('Overall Graduation Rate Across All Schools')
+plt.ylabel('Graduation Rate (%)')
+plt.ylim(0, 100)
+plt.show()
+
+# Graduation rate by gender
+grad_rate_by_gender_query = """
+SELECT Subgroup_Name, AVG(Percent_Graduated) as Avg_Graduation_Rate
+FROM Yr2023_Grad_Data
+WHERE Subgroup_Name IN ('Male', 'Female')  -- Assuming these are your subgroup names
+GROUP BY Subgroup_Name
+"""
+grad_rate_by_gender = execute_query(grad_rate_by_gender_query)
+
+# Visualization of Graduation Rate by Gender
+plt.figure(figsize=(8, 5))
+plt.bar(grad_rate_by_gender['Subgroup_Name'], grad_rate_by_gender['Avg_Graduation_Rate'], color=['orange', 'purple'])
+plt.title('Graduation Rate by Gender')
+plt.ylabel('Average Graduation Rate (%)')
+plt.ylim(0, 100)
+plt.show()
+
+# Top schools with highest graduation rates for specific subgroups
+top_schools_query = """
+SELECT School_Name, Subgroup_Name, Percent_Graduated
+FROM Yr2023_Grad_Data
+ORDER BY Percent_Graduated DESC
+LIMIT 10
+"""
+top_schools = execute_query(top_schools_query)
+
+# Visualization of Top Schools with Highest Graduation Rates
+plt.figure(figsize=(12, 6))
+sns.barplot(data=top_schools, x='Percent_Graduated', y='School_Name', hue='Subgroup_Name', palette='coolwarm')
+plt.title('Top Schools with Highest Graduation Rates')
+plt.xlabel('Graduation Rate (%)')
+plt.ylabel('School Name')
+plt.legend(title='Subgroup')
+plt.show()
+
+# Identify gaps in graduation rates
+gaps_query = """
+SELECT School_Name, Subgroup_Name, Percent_Graduated,
+       (SELECT AVG(Percent_Graduated) FROM Yr2023_Grad_Data g2 WHERE g2.School_Name = g1.School_Name) as Avg_School_Grad_Rate
+FROM Yr2023_Grad_Data g1
+WHERE Percent_Graduated < (SELECT AVG(Percent_Graduated) FROM Yr2023_Grad_Data)
+ORDER BY Percent_Graduated
+"""
+gaps = execute_query(gaps_query)
+
+# Visualization of Schools with Largest Gaps in Graduation Rates
+plt.figure(figsize=(12, 6))
+sns.barplot(data=gaps, x='Percent_Graduated', y='School_Name', hue='Subgroup_Name', palette='muted')
+plt.title('Schools with Largest Gaps in Graduation Rates')
+plt.xlabel('Graduation Rate (%)')
+plt.ylabel('School Name')
+plt.legend(title='Subgroup')
+plt.show()
+
+# Distribution of schools based on graduation rates
+distribution_query = """
+SELECT Percent_Graduated, COUNT(*) as Number_of_Schools
+FROM Yr2023_Grad_Data
+GROUP BY Percent_Graduated
+ORDER BY Percent_Graduated
+"""
+distribution = execute_query(distribution_query)
+
+# Visualization of the Distribution of Schools Based on Graduation Rates
+plt.figure(figsize=(10, 6))
+plt.hist(distribution['Percent_Graduated'], bins=30, weights=distribution['Number_of_Schools'], color='lightblue', edgecolor='black', alpha=0.7)
+plt.title('Distribution of Schools Based on Graduation Rates')
+plt.xlabel('Graduation Rate (%)')
+plt.ylabel('Number of Schools')
+plt.axvline(distribution['Percent_Graduated'].mean(), color='red', linestyle='dashed', linewidth=2, label='Mean Graduation Rate')
+plt.legend()
+plt.show()
