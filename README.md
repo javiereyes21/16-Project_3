@@ -65,7 +65,7 @@ Use optional Python scripts for further visualization and analysis.
 Contribution Guidelines:
 Javier Reyes Hernandez: Project lead,data Cleaning, Subgroup analysis, overall analysis, query creation.
 Priscilla Miller: Data sourcing, 3rd data normal form creation, ERD creation. 
-Jonathan Gilbert: Data visualization, Slides creation
+Jonathan Gilbert: Database storage, Slides creation
 
 
 
